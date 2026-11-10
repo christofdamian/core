@@ -34,6 +34,17 @@
       }
     },
     "sensor": {
+      "last_feeding": {
+        "name": "Last feeding",
+        "state_attributes": {
+          "change": {
+            "name": "Change"
+          },
+          "feeder": {
+            "name": "Feeder"
+          }
+        }
+      },
       "lid_close_delay": {
         "name": "Lid close delay"
       },

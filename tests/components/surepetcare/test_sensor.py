@@ -28,6 +28,11 @@ EXPECTED_ENTITIES = (
         f"{HOUSEHOLD_ID}-24680-last_seen_user",
         str(MOCK_PET["position"]["user_id"]),
     ),
+    (
+        "sensor.pet_last_feeding",
+        f"{HOUSEHOLD_ID}-24680-last_feeding",
+        "2026-11-03T08:07:32+00:00",
+    ),
     ("sensor.feeder_training_mode", f"{HOUSEHOLD_ID}-12345-training_mode", "step_2"),
     ("sensor.feeder_lid_close_delay", f"{HOUSEHOLD_ID}-12345-lid_close_delay", "4"),
     ("sensor.feeder_registered_pets", f"{HOUSEHOLD_ID}-12345-registered_pets", "1"),
@@ -91,3 +96,12 @@ async def test_registered_pets_attributes(hass: HomeAssistant) -> None:
     assert flap
     assert flap.attributes["pets"] == ["Pet", str(UNKNOWN_TAG_ID)]
     assert flap.attributes["indoor_only"] == [str(UNKNOWN_TAG_ID)]
+
+
+@pytest.mark.usefixtures("surepetcare", "mock_config_entry_setup")
+async def test_last_feeding_attributes(hass: HomeAssistant) -> None:
+    """Test the last feeding names the feeder and keeps the per-bowl change."""
+    state = hass.states.get("sensor.pet_last_feeding")
+    assert state
+    assert state.attributes["feeder"] == "Feeder"
+    assert state.attributes["change"] == [-11.15, 0.06]

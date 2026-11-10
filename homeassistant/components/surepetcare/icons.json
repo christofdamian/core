@@ -9,6 +9,9 @@
       }
     },
     "sensor": {
+      "last_feeding": {
+        "default": "mdi:food-drumstick-outline"
+      },
       "lid_close_delay": {
         "default": "mdi:timer-outline"
       },

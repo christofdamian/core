@@ -58,6 +58,7 @@ async def async_setup_entry(
         if surepy_entity.type == EntityType.PET:
             entities.append(PetLastSeenFlapDevice(surepy_entity.id, coordinator))
             entities.append(PetLastSeenUser(surepy_entity.id, coordinator))
+            entities.append(PetLastFeeding(surepy_entity.id, coordinator))
 
     async_add_entities(entities)
 
@@ -268,3 +269,37 @@ class RegisteredPets(SurePetcareEntity, SensorEntity):
                 for tag in tags
                 if tag.profile() == INDOOR_ONLY_PROFILE
             ]
+
+
+class PetLastFeeding(SurePetcareEntity, SensorEntity):
+    """When a pet last ate, with the feeder and the weight change per bowl."""
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "last_feeding"
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+
+    def __init__(
+        self, surepetcare_id: int, coordinator: SurePetcareDataCoordinator
+    ) -> None:
+        """Initialize a Sure Petcare last feeding sensor."""
+        super().__init__(surepetcare_id, coordinator)
+        self._attr_unique_id = f"{self._device_id}-last_feeding"
+
+    @callback
+    @override
+    def _update_attr(self, surepy_entity: SurepyEntity) -> None:
+        feeding = cast(SurepyPet, surepy_entity).feeding
+        if feeding is None:
+            self._attr_native_value = None
+            self._attr_extra_state_attributes = {}
+            return
+        self._attr_native_value = feeding.at
+        feeder = (
+            self.coordinator.data.get(feeding.device_id)
+            if feeding.device_id is not None
+            else None
+        )
+        self._attr_extra_state_attributes = {
+            "feeder": feeder.name if feeder else None,
+            "change": feeding.change,
+        }

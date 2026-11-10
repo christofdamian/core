@@ -95,7 +95,14 @@ MOCK_PET = {
         "device_id": MOCK_PET_FLAP["id"],
         "user_id": 112233,
     },
-    "status": {},
+    "status": {
+        "feeding": {
+            "tag_id": PET_TAG_ID,
+            "device_id": MOCK_FEEDER["id"],
+            "change": [-11.15, 0.06],
+            "at": "2026-11-03T08:07:32+00:00",
+        },
+    },
 }
 
 MOCK_API_DATA = {
