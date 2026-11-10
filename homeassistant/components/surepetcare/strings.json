@@ -24,6 +24,34 @@
       }
     }
   },
+  "entity": {
+    "binary_sensor": {
+      "curfew": {
+        "name": "Curfew"
+      },
+      "learn_mode": {
+        "name": "Learn mode"
+      }
+    },
+    "sensor": {
+      "lid_close_delay": {
+        "name": "Lid close delay"
+      },
+      "registered_pets": {
+        "name": "Registered pets"
+      },
+      "training_mode": {
+        "name": "Training mode",
+        "state": {
+          "off": "[%key:common::state::off%]",
+          "step_1": "Step 1",
+          "step_2": "Step 2",
+          "step_3": "Step 3",
+          "step_4": "Step 4"
+        }
+      }
+    }
+  },
   "exceptions": {
     "invalid_flap_id": {
       "message": "Unknown Sure Petcare flap ID: {flap_id}"

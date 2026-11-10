@@ -2,6 +2,8 @@
 
 HOUSEHOLD_ID = 987654321
 HUB_ID = 123456789
+PET_TAG_ID = 1001
+UNKNOWN_TAG_ID = 1002
 
 MOCK_HUB = {
     "id": HUB_ID,
@@ -21,6 +23,8 @@ MOCK_FEEDER = {
     "household_id": HOUSEHOLD_ID,
     "name": "Feeder",
     "parent": {"product_id": 1, "id": HUB_ID},
+    "control": {"training_mode": 2, "lid": {"close_delay": 4}},
+    "tags": [{"id": PET_TAG_ID, "index": 1, "profile": 2}],
     "status": {
         "battery": 6.4,
         "locking": {"mode": 0},
@@ -49,6 +53,13 @@ MOCK_CAT_FLAP = {
     "household_id": HOUSEHOLD_ID,
     "name": "Cat Flap",
     "parent": {"product_id": 1, "id": HUB_ID},
+    "control": {
+        "curfew": [{"enabled": True, "lock_time": "19:00", "unlock_time": "07:00"}],
+    },
+    "tags": [
+        {"id": PET_TAG_ID, "index": 1, "profile": 2},
+        {"id": UNKNOWN_TAG_ID, "index": 2, "profile": 3},
+    ],
     "status": {
         "battery": 6.4,
         "locking": {"mode": 0},
@@ -77,6 +88,7 @@ MOCK_PET = {
     "id": 24680,
     "household_id": HOUSEHOLD_ID,
     "name": "Pet",
+    "tag_id": PET_TAG_ID,
     "position": {
         "since": "2020-08-23T23:10:50",
         "where": 1,

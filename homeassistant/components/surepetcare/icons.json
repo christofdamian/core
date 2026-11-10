@@ -1,4 +1,25 @@
 {
+  "entity": {
+    "binary_sensor": {
+      "curfew": {
+        "default": "mdi:clock-outline"
+      },
+      "learn_mode": {
+        "default": "mdi:chip"
+      }
+    },
+    "sensor": {
+      "lid_close_delay": {
+        "default": "mdi:timer-outline"
+      },
+      "registered_pets": {
+        "default": "mdi:paw"
+      },
+      "training_mode": {
+        "default": "mdi:school-outline"
+      }
+    }
+  },
   "services": {
     "set_lock_state": {
       "service": "mdi:lock"

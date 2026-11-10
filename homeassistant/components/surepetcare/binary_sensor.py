@@ -3,6 +3,7 @@
 from typing import cast, override
 
 from surepy.entities import SurepyEntity
+from surepy.entities.devices import Flap as SurepyFlap, Hub as SurepyHub, SurepyDevice
 from surepy.entities.pet import Pet as SurepyPet
 from surepy.enums import EntityType, Location
 
@@ -25,7 +26,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up Sure PetCare Flaps binary sensors based on a config entry."""
 
-    entities: list[SurePetcareBinarySensor] = []
+    entities: list[SurePetcareEntity] = []
 
     coordinator = entry.runtime_data
 
@@ -38,6 +39,9 @@ async def async_setup_entry(
             EntityType.FELAQUA,
         ]:
             entities.append(DeviceConnectivity(surepy_entity.id, coordinator))
+            entities.append(LearnMode(surepy_entity.id, coordinator))
+            if surepy_entity.type in [EntityType.CAT_FLAP, EntityType.PET_FLAP]:
+                entities.append(Curfew(surepy_entity.id, coordinator))
         elif surepy_entity.type == EntityType.PET:
             entities.append(Pet(surepy_entity.id, coordinator))
         elif surepy_entity.type == EntityType.HUB:
@@ -77,17 +81,12 @@ class Hub(SurePetcareBinarySensor):
     @override
     def _update_attr(self, surepy_entity: SurepyEntity) -> None:
         """Get the latest data and update the state."""
-        state = surepy_entity.raw_data()["status"]
-        self._attr_is_on = self._attr_available = bool(state["online"])
-        if surepy_entity.raw_data():
-            self._attr_extra_state_attributes = {
-                "led_mode": int(surepy_entity.raw_data()["status"]["led_mode"]),
-                "pairing_mode": bool(
-                    surepy_entity.raw_data()["status"]["pairing_mode"]
-                ),
-            }
-        else:
-            self._attr_extra_state_attributes = {}
+        hub = cast(SurepyHub, surepy_entity)
+        self._attr_is_on = self._attr_available = hub.online
+        self._attr_extra_state_attributes = {
+            "led_mode": hub.led_mode,
+            "pairing_mode": hub.pairing_mode,
+        }
 
 
 class Pet(SurePetcareBinarySensor):
@@ -145,3 +144,57 @@ class DeviceConnectivity(SurePetcareBinarySensor):
             hub_rssi = state.get("signal", {}).get("hub_rssi")
             if hub_rssi is not None:
                 self._attr_extra_state_attributes["hub_rssi"] = f"{hub_rssi:.2f}"
+
+
+class LearnMode(SurePetcareEntity, BinarySensorEntity):
+    """On while a device is learning a new pet microchip."""
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "learn_mode"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(
+        self,
+        surepetcare_id: int,
+        coordinator: SurePetcareDataCoordinator,
+    ) -> None:
+        """Initialize a Sure Petcare learn mode binary sensor."""
+        super().__init__(surepetcare_id, coordinator)
+        self._attr_unique_id = f"{self._device_id}-learn_mode"
+
+    @callback
+    @override
+    def _update_attr(self, surepy_entity: SurepyEntity) -> None:
+        self._attr_is_on = cast(SurepyDevice, surepy_entity).learn_mode
+
+
+class Curfew(SurePetcareEntity, BinarySensorEntity):
+    """On if a flap has an enabled curfew, with the curfew times as attributes."""
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "curfew"
+
+    def __init__(
+        self,
+        surepetcare_id: int,
+        coordinator: SurePetcareDataCoordinator,
+    ) -> None:
+        """Initialize a Sure Petcare curfew binary sensor."""
+        super().__init__(surepetcare_id, coordinator)
+        self._attr_unique_id = f"{self._device_id}-curfew"
+
+    @callback
+    @override
+    def _update_attr(self, surepy_entity: SurepyEntity) -> None:
+        curfews = cast(SurepyFlap, surepy_entity).curfew
+        self._attr_is_on = any(curfew.enabled for curfew in curfews)
+        self._attr_extra_state_attributes = {
+            "curfews": [
+                {
+                    "enabled": curfew.enabled,
+                    "lock_time": curfew.lock_time,
+                    "unlock_time": curfew.unlock_time,
+                }
+                for curfew in curfews
+            ]
+        }

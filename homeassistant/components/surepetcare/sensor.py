@@ -3,12 +3,23 @@
 from typing import cast, override
 
 from surepy.entities import SurepyEntity
-from surepy.entities.devices import Felaqua as SurepyFelaqua
+from surepy.entities.devices import (
+    Feeder as SurepyFeeder,
+    Felaqua as SurepyFelaqua,
+    Flap as SurepyFlap,
+    SurepyDevice,
+)
 from surepy.entities.pet import Pet as SurepyPet
 from surepy.enums import EntityType
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
-from homeassistant.const import ATTR_VOLTAGE, PERCENTAGE, EntityCategory, UnitOfVolume
+from homeassistant.const import (
+    ATTR_VOLTAGE,
+    PERCENTAGE,
+    EntityCategory,
+    UnitOfTime,
+    UnitOfVolume,
+)
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
@@ -36,6 +47,11 @@ async def async_setup_entry(
             EntityType.FELAQUA,
         ]:
             entities.append(SureBattery(surepy_entity.id, coordinator))
+            entities.append(RegisteredPets(surepy_entity.id, coordinator))
+
+        if surepy_entity.type in [EntityType.FEEDER, EntityType.FEEDER_LITE]:
+            entities.append(FeederTrainingMode(surepy_entity.id, coordinator))
+            entities.append(FeederLidCloseDelay(surepy_entity.id, coordinator))
 
         if surepy_entity.type == EntityType.FELAQUA:
             entities.append(Felaqua(surepy_entity.id, coordinator))
@@ -165,3 +181,89 @@ class PetLastSeenUser(SurePetcareEntity, SensorEntity):
         position = surepy_entity._data.get("position", {})  # noqa: SLF001
         user_id = position.get("user_id")
         self._attr_native_value = str(user_id) if user_id is not None else None
+
+
+TRAINING_MODE_OPTIONS = ["off", "step_1", "step_2", "step_3", "step_4"]
+INDOOR_ONLY_PROFILE = 3
+
+
+class FeederTrainingMode(SurePetcareEntity, SensorEntity):
+    """Lid training step of a feeder."""
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "training_mode"
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_options = TRAINING_MODE_OPTIONS
+
+    def __init__(
+        self, surepetcare_id: int, coordinator: SurePetcareDataCoordinator
+    ) -> None:
+        """Initialize a Sure Petcare feeder training mode sensor."""
+        super().__init__(surepetcare_id, coordinator)
+        self._attr_unique_id = f"{self._device_id}-training_mode"
+
+    @callback
+    @override
+    def _update_attr(self, surepy_entity: SurepyEntity) -> None:
+        mode = cast(SurepyFeeder, surepy_entity).training_mode
+        if mode is None or not 0 <= mode < len(TRAINING_MODE_OPTIONS):
+            self._attr_native_value = None
+        else:
+            self._attr_native_value = TRAINING_MODE_OPTIONS[mode]
+
+
+class FeederLidCloseDelay(SurePetcareEntity, SensorEntity):
+    """Seconds a feeder's lid stays open after the pet leaves."""
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "lid_close_delay"
+    _attr_device_class = SensorDeviceClass.DURATION
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_native_unit_of_measurement = UnitOfTime.SECONDS
+
+    def __init__(
+        self, surepetcare_id: int, coordinator: SurePetcareDataCoordinator
+    ) -> None:
+        """Initialize a Sure Petcare feeder lid close delay sensor."""
+        super().__init__(surepetcare_id, coordinator)
+        self._attr_unique_id = f"{self._device_id}-lid_close_delay"
+
+    @callback
+    @override
+    def _update_attr(self, surepy_entity: SurepyEntity) -> None:
+        self._attr_native_value = cast(SurepyFeeder, surepy_entity).lid_close_delay
+
+
+class RegisteredPets(SurePetcareEntity, SensorEntity):
+    """Number of pets registered to a device, with their names as attributes."""
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "registered_pets"
+
+    def __init__(
+        self, surepetcare_id: int, coordinator: SurePetcareDataCoordinator
+    ) -> None:
+        """Initialize a Sure Petcare registered pets sensor."""
+        super().__init__(surepetcare_id, coordinator)
+        self._attr_unique_id = f"{self._device_id}-registered_pets"
+
+    @callback
+    @override
+    def _update_attr(self, surepy_entity: SurepyEntity) -> None:
+        device = cast(SurepyDevice, surepy_entity)
+        pets_by_tag = {
+            pet.tag_id: pet.name
+            for pet in self.coordinator.data.values()
+            if isinstance(pet, SurepyPet) and pet.tag_id is not None
+        }
+        tags = list(device.tags.values())
+        self._attr_native_value = len(tags)
+        self._attr_extra_state_attributes = {
+            "pets": [pets_by_tag.get(tag.id, str(tag.id)) for tag in tags]
+        }
+        if isinstance(device, SurepyFlap):
+            self._attr_extra_state_attributes["indoor_only"] = [
+                pets_by_tag.get(tag.id, str(tag.id))
+                for tag in tags
+                if tag.profile() == INDOOR_ONLY_PROFILE
+            ]

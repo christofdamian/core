@@ -7,7 +7,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_registry import RegistryEntryDisabler
 
-from . import HOUSEHOLD_ID, MOCK_FELAQUA, MOCK_PET
+from . import HOUSEHOLD_ID, MOCK_FELAQUA, MOCK_PET, UNKNOWN_TAG_ID
 
 EXPECTED_ENTITIES = (
     ("sensor.pet_flap_battery_level", f"{HOUSEHOLD_ID}-13576-battery", "100"),
@@ -27,6 +27,16 @@ EXPECTED_ENTITIES = (
         "sensor.pet_last_seen_user_id",
         f"{HOUSEHOLD_ID}-24680-last_seen_user",
         str(MOCK_PET["position"]["user_id"]),
+    ),
+    ("sensor.feeder_training_mode", f"{HOUSEHOLD_ID}-12345-training_mode", "step_2"),
+    ("sensor.feeder_lid_close_delay", f"{HOUSEHOLD_ID}-12345-lid_close_delay", "4"),
+    ("sensor.feeder_registered_pets", f"{HOUSEHOLD_ID}-12345-registered_pets", "1"),
+    ("sensor.cat_flap_registered_pets", f"{HOUSEHOLD_ID}-13579-registered_pets", "2"),
+    ("sensor.pet_flap_registered_pets", f"{HOUSEHOLD_ID}-13576-registered_pets", "0"),
+    (
+        "sensor.felaqua_registered_pets",
+        f"{HOUSEHOLD_ID}-{MOCK_FELAQUA['id']}-registered_pets",
+        "0",
     ),
 )
 
@@ -67,3 +77,17 @@ async def test_default_disabled_sensors(
         assert entity
         assert entity.disabled_by == RegistryEntryDisabler.INTEGRATION
         assert not hass.states.get(entity_id)
+
+
+@pytest.mark.usefixtures("surepetcare", "mock_config_entry_setup")
+async def test_registered_pets_attributes(hass: HomeAssistant) -> None:
+    """Test registered pet names, with the tag id for tags without a known pet."""
+    feeder = hass.states.get("sensor.feeder_registered_pets")
+    assert feeder
+    assert feeder.attributes["pets"] == ["Pet"]
+    assert "indoor_only" not in feeder.attributes
+
+    flap = hass.states.get("sensor.cat_flap_registered_pets")
+    assert flap
+    assert flap.attributes["pets"] == ["Pet", str(UNKNOWN_TAG_ID)]
+    assert flap.attributes["indoor_only"] == [str(UNKNOWN_TAG_ID)]
